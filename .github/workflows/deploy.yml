@@ -1,4 +1,4 @@
-name: Deploy Notes Backend
+name: Deploy Ngobrol Backend
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Add server to known hosts
         run: |
-          ssh-keyscan -H 91.99.31.20 > ~/.ssh/known_hosts
+          ssh-keyscan -H 202.10.47.243 > ~/.ssh/known_hosts
 
       - name: Build JAR
         run: |
@@ -28,15 +28,14 @@ jobs:
 
       - name: Deploy JAR to Server
         run: |
-          JAR_NAME="spring_boot_crash_course-0.0.1-SNAPSHOT.jar"
+          JAR_NAME="ngobrol-0.0.1-SNAPSHOT.jar"
           LOCAL_JAR_PATH="build/libs/$JAR_NAME"
-          REMOTE_SERVER="admin@91.99.31.20"
-          REMOTE_JAR_DIR="/opt/notes"
+          REMOTE_SERVER="admin@202.10.47.243"
+          REMOTE_JAR_DIR="/opt/ngobrol"
 
           rsync -avz -e "ssh" $LOCAL_JAR_PATH $REMOTE_SERVER:$REMOTE_JAR_DIR/$JAR_NAME
 
           ssh $REMOTE_SERVER << EOF
-            mv $REMOTE_JAR_DIR/$JAR_NAME $REMOTE_JAR_DIR/notes.jar
-#          give sudo access to execute command
-            sudo systemctl restart notes.service
+            mv $REMOTE_JAR_DIR/$JAR_NAME $REMOTE_JAR_DIR/ngobrol.jar
+            sudo systemctl restart ngobrol.service
           EOF
