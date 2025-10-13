@@ -24,6 +24,7 @@ jobs:
 
       - name: Build JAR
         run: |
+          chmod +x ./gradlew
           ./gradlew bootJar
 
       - name: Deploy JAR to Server
