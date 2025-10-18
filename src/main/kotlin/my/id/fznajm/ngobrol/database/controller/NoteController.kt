@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank
 import my.id.fznajm.ngobrol.database.model.Note
 import my.id.fznajm.ngobrol.database.repository.NoteRepository
 import org.bson.types.ObjectId
+import org.slf4j.LoggerFactory
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
@@ -14,6 +15,8 @@ import java.time.Instant
 class NoteController(
     val repository: NoteRepository
 ) {
+    private val logger = LoggerFactory.getLogger(this.javaClass)
+
     data class NoteRequest(
         val id: String?,
         @field:NotBlank(message = "Note title can't be blank")
@@ -47,14 +50,13 @@ class NoteController(
             )
         )
 
-        // can use mapping for this
+        logger.info("Note saved: $note")
         return note.toResponse()
     }
 
     @GetMapping
     fun findByOwnerId(): List<NoteResponse> {
         val ownerId = SecurityContextHolder.getContext().authentication.principal as String
-        print(ownerId)
         return repository.findByOwnerId(ObjectId(ownerId)).map {
             it.toResponse()
         }
