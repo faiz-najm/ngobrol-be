@@ -1,17 +1,22 @@
-name: Deploy Ngobrol Backend
+name: Quality Gate
 
 on:
+  pull_request:
+    branches: [ master ]
   push:
-    branches:
-      - master
+    branches: [ master ]
 
 jobs:
-  deploy:
+  quality-check:
     runs-on: ubuntu-latest
-
+    env:
+      SHA_FULL: ${{ github.sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.5.3
@@ -20,23 +25,43 @@ jobs:
 
       - name: Add server to known hosts
         run: |
-          ssh-keyscan -H 202.10.47.243 > ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.HOST }} > ~/.ssh/known_hosts
 
-      - name: Build JAR
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build and Verify
+        if: github.event_name == 'push' || github.event.pull_request.merged == true
         run: |
           chmod +x ./gradlew
           ./gradlew bootJar
+          docker build -t ngobrol:${SHA_FULL:0:7} .
 
-      - name: Deploy JAR to Server
+      - name: Deploy to Production
+
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          JAR_NAME="ngobrol-0.0.1-SNAPSHOT.jar"
-          LOCAL_JAR_PATH="build/libs/$JAR_NAME"
-          REMOTE_SERVER="admin@202.10.47.243"
-          REMOTE_JAR_DIR="/opt/ngobrol"
-
-          rsync -avz -e "ssh" $LOCAL_JAR_PATH $REMOTE_SERVER:$REMOTE_JAR_DIR/$JAR_NAME
-
-          ssh $REMOTE_SERVER << EOF
-            mv $REMOTE_JAR_DIR/$JAR_NAME $REMOTE_JAR_DIR/ngobrol.jar
-            sudo systemctl restart ngobrol.service
+          
+          
+          docker tag ngobrol:${SHA_FULL:0:7} ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
+          docker tag ngobrol:${SHA_FULL:0:7} ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:${SHA_FULL:0:7}
+          docker push ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:${SHA_FULL:0:7}
+          
+          SSH_TARGET="${{ secrets.USER }}@${{ secrets.HOST }}"
+          ssh "$SSH_TARGET" << EOF
+            docker pull ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
+            cd /opt/ngobrol
+            docker-compose down
+            docker-compose up -d
+            docker image prune -f
+          
+            echo "🎉 Noiicee!"
           EOF
