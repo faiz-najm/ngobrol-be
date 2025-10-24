@@ -1,0 +1,13 @@
+# deploy jar only
+# Ignore everything
+**
+
+# Allow Dockerfile and the generated jar(s)
+!Dockerfile
+!build/
+!build/libs/
+!build/libs/*.jar
+!entrypoint.sh
+
+# Keep .dockerignore in context
+!.dockerignore

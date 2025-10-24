@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  ngobrol:
+    image: fznajm/ngobrol-be:${GIT_COMMIT_HASH:-latest}
+    secrets:
+      - jwt-secret
+      - mongodb-uri
+      - loki-token
+
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - LOKI_URL=https://logs-prod-032.grafana.net/loki/api/v1/push
+      - LOKI_USERNAME=1366284
+    # restart: unless-stopped # is unsupported in docker stack
+    deploy:
+      update_config:
+        order: start-first
+    healthcheck:
+      # Use 127.0.0.1 and silent/fail options so curl exits non-zero on non-2xx and avoids DNS issues.
+      test: [ "CMD", "curl", "--silent", "--show-error", "--fail", "http://127.0.0.1:8085/actuator/health" ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+secrets:
+    jwt-secret:
+      external: true
+    mongodb-uri:
+      external: true
+    loki-token:
+      external: true

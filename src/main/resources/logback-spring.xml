@@ -53,7 +53,7 @@
             <timeZone>UTC</timeZone>
             <customFields>
                 {
-                "service": "${spring.application.name:-spring-boot-crash-course}",
+                "service": "${spring.application.name:-ngobrol-be}",
                 "env": "${spring.profiles.active:-prod}"
                 }
             </customFields>

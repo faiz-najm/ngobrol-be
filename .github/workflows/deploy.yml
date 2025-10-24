@@ -1,6 +1,7 @@
 name: Quality Gate
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ master ]
   push:
@@ -9,8 +10,6 @@ on:
 jobs:
   quality-check:
     runs-on: ubuntu-latest
-    env:
-      SHA_FULL: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v2
@@ -37,30 +36,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Build and Verify
+      - name: Build Jar
         if: github.event_name == 'push' || github.event.pull_request.merged == true
         run: |
           chmod +x ./gradlew
           ./gradlew bootJar
-          docker build -t ngobrol:${SHA_FULL:0:7} .
+
+      - name: Docker Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ngobrol-be:latest,${{ secrets.DOCKERHUB_USERNAME }}/ngobrol-be:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
 
       - name: Deploy to Production
-
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          
-          
-          docker tag ngobrol:${SHA_FULL:0:7} ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
-          docker tag ngobrol:${SHA_FULL:0:7} ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:${SHA_FULL:0:7}
-          docker push ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:${SHA_FULL:0:7}
-          
           SSH_TARGET="${{ secrets.USER }}@${{ secrets.HOST }}"
           ssh "$SSH_TARGET" << EOF
             docker pull ${{ secrets.DOCKER_USERNAME }}/ngobrol-be:latest
             cd /opt/ngobrol
-            docker-compose down
-            docker-compose up -d
+            docker compose down
+            docker compose up -d
             docker image prune -f
           
             echo "🎉 Noiicee!"

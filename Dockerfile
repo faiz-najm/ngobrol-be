@@ -1,12 +1,18 @@
-FROM eclipse-temurin:21-jdk-alpine
+FROM eclipse-temurin:25-jdk-alpine
+
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
 COPY build/libs/*.jar app.jar
+COPY entrypoint.sh entrypoint.sh
 
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN addgroup -S spring && adduser -S spring -G spring && \
+    mkdir -p /app/logs && chown -R spring:spring /app/logs && \
+    chmod +x /app/entrypoint.sh
 USER spring
 
-EXPOSE 8080
+EXPOSE 8085
 
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
+# optionally use CMD for extra args
